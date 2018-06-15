@@ -1,38 +1,36 @@
-FROM ubuntu:xenial
-MAINTAINER Daniel R. Kerr <daniel.r.kerr@gmail.com>
+FROM ubuntu:bionic
+LABEL maintainer="Daniel R. Kerr <daniel.r.kerr@gmail.com>"
+LABEL maintainer="N02t"
+
+ARG CORE_VER=5.1
+ARG EMANE_VER=1.2.2
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM xterm
 
 RUN apt-get update -y \
- && apt-get install -qq -y libace-dev libev-dev libffi-dev libprotobuf-dev libreadline-dev libssl-dev libtk-img libyaml-dev libxml-libxml-perl libxml-simple-perl \
- && apt-get install -qq -y autoconf automake gcc help2man make pkg-config tcc \
  && apt-get install -qq -y python python-dev python-pip \
- && apt-get install -qq -y python-lxml python-protobuf python-setuptools python-sphinx \
- && apt-get install -qq -y tcl8.5 tk8.5 \
- && apt-get clean \
- && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
+ && apt-get install -qq -y python-lxml python-mako python-numpy python-pandas python-paramiko python-protobuf python-psutil python-pyroute2 python-scipy python-setuptools python-sphinx python-zmq\
+ && apt-get install -qq -y libev4 libtk-img tcl tk \
+ && apt-get install -qq -y bash curl screen supervisor wget xvfb \
+ && apt-get install -qq -y apache2 lxc openssh-server vsftpd \
+ && apt-get install -qq -y bridge-utils ebtables iproute2 iptables iputils-ping isc-dhcp-server mgen mtr net-tools scamper tcpdump traceroute quagga uml-utilities \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update -y \
- && apt-get install -qq -y bash curl git imagemagick psmisc screen supervisor wget xvfb \
- && apt-get install -qq -y apache2 openssh-server vsftpd \
- && apt-get install -qq -y bridge-utils ebtables iproute iptables iputils-ping isc-dhcp-server mgen mtr net-tools scamper tcpdump traceroute quagga uml-utilities \
- && apt-get clean \
- && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
+WORKDIR /opt
 
-RUN git clone https://github.com/coreemu/core.git /opt/core \
- && cd /opt/core \
- && ./bootstrap.sh && ./configure && make && make install \
- && cd /root \
- && rm -rf /opt/core
+RUN wget -qO /opt/core.deb https://github.com/coreemu/core/releases/download/release-${CORE_VER}/core-gui_${CORE_VER}_amd64.deb \
+ && wget -qO /opt/python-ns3.deb https://github.com/coreemu/core/releases/download/release-${CORE_VER}/python-core-ns3_${CORE_VER}_all.deb \
+ && wget -qO /opt/python-core-sysv.deb https://github.com/coreemu/core/releases/download/release-${CORE_VER}/python-core_sysv_${CORE_VER}_all.deb \
+ && dpkg -i *.deb \
+ && rm -rf *.deb \
+ && wget -qO /opt/emane.tgz https://adjacentlink.com/downloads/emane/emane-${EMANE_VER}-release-1.ubuntu-18_04.amd64.tar.gz \
+ && tar xvzf /opt/emane.tgz emane-${EMANE_VER}-release-1/debs/ubuntu-18_04/amd64/ \
+ && ls -alh \
+ && find . -type f ! -name *python3* -path "*.deb" -exec dpkg -i {} \; \
+ && rm -rf /opt/*
 
-RUN wget -O /opt/emane.tgz https://adjacentlink.com/downloads/emane/emane-1.0.1-release-1.ubuntu-16_04.amd64.tar.gz \
- && cd /opt \
- && tar xzf /opt/emane.tgz \
- && cd /opt/emane-1.0.1-release-1/debs/ubuntu-16_04/amd64 \
- && dpkg -i emane*.deb python*.deb \
- && cd /root \
- && rm -rf /opt/emane.tgz /opt/emane-1.0.1-release-1
+WORKDIR /root
 
 RUN mkdir /var/run/sshd \
  && mkdir /root/.ssh \
@@ -48,5 +46,4 @@ EXPOSE 22
 COPY icons /usr/local/share/core/icons/cisco
 COPY supervisord.conf /etc/supervisor/conf.d/core.conf
 
-WORKDIR /root
 CMD ["/usr/bin/supervisord", "--nodaemon"]
