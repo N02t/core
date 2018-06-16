@@ -1,34 +1,40 @@
-FROM ubuntu:bionic
+FROM alpine
 LABEL maintainer="Daniel R. Kerr <daniel.r.kerr@gmail.com>"
 LABEL maintainer="N02t"
 
 ARG CORE_VER=5.1
 ARG EMANE_VER=1.2.2
 
-ENV DEBIAN_FRONTEND noninteractive
 ENV TERM xterm
 
-RUN apt-get update -y \
- && apt-get install -qq -y python python-dev python-pip \
- && apt-get install -qq -y python-lxml python-mako python-numpy python-pandas python-paramiko python-protobuf python-psutil python-pyroute2 python-scipy python-setuptools python-sphinx python-zmq\
- && apt-get install -qq -y libev4 libtk-img tcl tk \
- && apt-get install -qq -y bash curl screen supervisor wget xvfb \
- && apt-get install -qq -y apache2 lxc openssh-server vsftpd \
- && apt-get install -qq -y bridge-utils ebtables iproute2 iptables iputils-ping isc-dhcp-server mgen mtr net-tools scamper tcpdump traceroute quagga uml-utilities \
- && rm -rf /var/lib/apt/lists/*
+#py-pandas py-protobuf py-pyroute2 py-scipy
+RUN apk --no-cache add -t build_deps autoconf automake binutils-dev bsd-compat-headers gcc help2man linux-headers make musl-dev pkgconfig \
+ && apk --no-cache add python-dev py2-pip py-lxml py-mako py-numpy py-paramiko py-psutil py-setuptools py-sphinx py-zmq \
+ && apk --no-cache add imagemagick libev-dev \
+ && apk --no-cache add bash curl screen sed supervisor wget xvfb apache2 openssh-server vsftpd tcl tk \
+ && apk --no-cache add bridge-utils dhcp ebtables iproute2 iptables iputils mtr net-tools openvswitch tcpdump quagga \
+ && rm -rf /var/cache/apk/*
+# mgen scamper traceroute uml-utilities
 
 WORKDIR /opt
 
-RUN wget -qO /opt/core.deb https://github.com/coreemu/core/releases/download/release-${CORE_VER}/core-gui_${CORE_VER}_amd64.deb \
- && wget -qO /opt/python-ns3.deb https://github.com/coreemu/core/releases/download/release-${CORE_VER}/python-core-ns3_${CORE_VER}_all.deb \
- && wget -qO /opt/python-core-sysv.deb https://github.com/coreemu/core/releases/download/release-${CORE_VER}/python-core_sysv_${CORE_VER}_all.deb \
- && dpkg -i *.deb \
- && rm -rf *.deb \
- && wget -qO /opt/emane.tgz https://adjacentlink.com/downloads/emane/emane-${EMANE_VER}-release-1.ubuntu-18_04.amd64.tar.gz \
- && tar xvzf /opt/emane.tgz emane-${EMANE_VER}-release-1/debs/ubuntu-18_04/amd64/ \
- && ls -alh \
- && find . -type f ! -name *python3* -path "*.deb" -exec dpkg -i {} \; \
- && rm -rf /opt/*
+RUN wget -qO /opt/core.tgz https://github.com/coreemu/core/archive/release-${CORE_VER}.tar.gz \
+ && tar xzf core.tgz
+
+WORKDIR /opt/core-release-5.1
+
+RUN sed -i 's/-Werror//g' configure.ac \
+ && ./bootstrap.sh \
+ && ./configure \
+ && make \
+ && make install \
+ && apk del build_deps
+
+ #&& rm -rf *.deb \
+ #&& wget -qO /opt/emane.tgz https://adjacentlink.com/downloads/emane/emane-${EMANE_VER}-release-1.ubuntu-18_04.amd64.tar.gz \
+ #&& tar xvzf /opt/emane.tgz emane-${EMANE_VER}-release-1/debs/ubuntu-18_04/amd64/ \
+ #&& ls -alh \
+ #&& find . -type f ! -name *python3* -path "*.deb" -exec dpkg -i {} \; \
 
 WORKDIR /root
 
